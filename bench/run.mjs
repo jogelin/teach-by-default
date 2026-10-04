@@ -16,12 +16,12 @@ const { values: opts } = parseArgs({
     concurrency: { type: 'string', default: '3' },
     conditions: { type: 'string' },
     tasks: { type: 'string' },
-    out: { type: 'string', default: 'results/runs.jsonl' },
+    out: { type: 'string', default: 'bench/results/runs.jsonl' },
   },
 });
 
 const pick = (all, list) => (list ? all.filter((x) => list.split(',').includes(x.id ?? x)) : all);
-const conditions = pick(readdirSync(join(root, 'conditions')).filter((c) => /^\d/.test(c)).sort(), opts.conditions);
+const conditions = pick(readdirSync(join(root, 'bench/conditions')).filter((c) => /^\d/.test(c)).sort(), opts.conditions);
 const tasks = pick(JSON.parse(readFileSync(join(root, 'bench/tasks.json'), 'utf8')), opts.tasks);
 const LOG_CALL = /\b(logger|console)\.(debug|info|warn|error|log)\s*\(/g;
 
@@ -32,14 +32,15 @@ const countLogCalls = (dir) =>
 
 function prepare(condition) {
   const dir = mkdtempSync(join(tmpdir(), 'teach-by-default-'));
-  cpSync(join(root, 'fixture'), dir, { recursive: true });
-  cpSync(join(root, 'conditions', condition), dir, { recursive: true, filter: (src) => !src.endsWith('.keep') });
+  cpSync(join(root, 'src'), join(dir, 'src'), { recursive: true });
+  cpSync(join(root, 'package.json'), join(dir, 'package.json'));
+  cpSync(join(root, 'bench/conditions', condition), dir, { recursive: true, filter: (src) => !src.endsWith('.keep') });
   if (existsSync(join(dir, '.claude/settings.json'))) {
     const hooks = join(dir, '.claude/hooks');
     mkdirSync(hooks, { recursive: true });
-    cpSync(join(root, 'conditions/hooks'), hooks, { recursive: true });
+    cpSync(join(root, '.claude/hooks'), hooks, { recursive: true });
+    cpSync(join(root, 'bench/hooks'), hooks, { recursive: true });
     cpSync(join(root, 'guard/check.mjs'), join(hooks, 'check.mjs'));
-    cpSync(join(root, 'guard/rule.txt'), join(hooks, 'rule.txt'));
   }
   const git = (...args) => execFileSync('git', ['-c', 'user.name=bench', '-c', 'user.email=bench@example.com', ...args], { cwd: dir });
   git('init', '-q');
@@ -81,8 +82,8 @@ async function runOne(condition, task, rep) {
   const logCallsAdded = countLogCalls(dir) - before;
   const diff = execFileSync('git', ['diff'], { cwd: dir, encoding: 'utf8' });
   const id = `${condition}__${task.id}__${rep}`;
-  mkdirSync(join(root, 'results/diffs'), { recursive: true });
-  writeFileSync(join(root, 'results/diffs', `${id}.diff`), diff);
+  mkdirSync(join(root, 'bench/results/diffs'), { recursive: true });
+  writeFileSync(join(root, 'bench/results/diffs', `${id}.diff`), diff);
   rmSync(dir, { recursive: true, force: true });
   return {
     id,
@@ -105,7 +106,7 @@ async function runOne(condition, task, rep) {
 }
 
 const jobs = conditions.flatMap((c) => tasks.flatMap((t) => Array.from({ length: Number(opts.reps) }, (_, r) => [c, t, r + 1])));
-mkdirSync(join(root, 'results'), { recursive: true });
+mkdirSync(join(root, 'bench/results'), { recursive: true });
 const out = join(root, opts.out);
 console.log(`${jobs.length} runs: ${conditions.length} conditions x ${tasks.length} tasks x ${opts.reps} reps, model ${opts.model}`);
 

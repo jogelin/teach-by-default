@@ -11,4 +11,4 @@ jobs:
         with:
           node-version: 22
       - run: node --test guard/check.test.mjs
-      - run: node guard/check.mjs fixture/src
+      - run: node guard/check.mjs src
