@@ -1,0 +1,18 @@
+diff --git a/src/users.ts b/src/users.ts
+index a767fe0..6332d2f 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -36,5 +37,7 @@ export async function updateEmail(userId: string, newEmail: string): Promise<voi
+ export async function updateAddress(userId: string, address: string): Promise<void> {
+   const user = await db.users.findById(userId);
+   if (!user) throw new Error('User not found');
++  const changed = user.address !== address;
++  logger.debug('user update', { userId, changed });
+   await db.users.update(userId, { address });
+ }

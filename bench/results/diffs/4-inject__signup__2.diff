@@ -1,0 +1,43 @@
+diff --git a/src/users.ts b/src/users.ts
+index a767fe0..2de8c72 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -9,9 +10,29 @@ export interface User {
+ }
+ 
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+-  const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
++  let existing: User | null | undefined;
++  try {
++    existing = await db.users.findByEmail(input.email);
++  } catch (err) {
++    logger.error('create user failed', { step: 'lookup', errorName: errorName(err) });
++    throw err;
++  }
++  if (existing) {
++    logger.warn('create user rejected', { reason: 'email already registered', existingUserId: existing.id });
++    throw new Error('Email already registered');
++  }
++  try {
++    const user = await db.users.insert(input);
++    logger.info('user created', { userId: user.id });
++    return user;
++  } catch (err) {
++    logger.error('create user failed', { step: 'insert', errorName: errorName(err) });
++    throw err;
++  }
++}
++
++function errorName(err: unknown): string {
++  return err instanceof Error ? err.name : 'UnknownError';
+ }
+ 
+ export async function login(email: string, password: string): Promise<User> {

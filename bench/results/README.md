@@ -1,14 +1,14 @@
 # Results
 
-| Condition | Runs | Compliant | Task done | Skill loaded | Policy feedback / run | Median time | Avg cost | Avg turns |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 0-none | 6 | 33% | 100% | 0% | 0.0 | 14s | $0.085 | 5.8 |
-| 1-claude-md | 6 | 100% | 100% | 0% | 0.0 | 13s | $0.075 | 5.0 |
-| 2-skill | 6 | 83% | 100% | 100% | 0.0 | 19s | $0.091 | 8.2 |
-| 3-skill-directive | 6 | 100% | 100% | 100% | 0.0 | 14s | $0.093 | 8.2 |
-| 4-inject | 6 | 100% | 100% | 100% | 0.0 | 12s | $0.076 | 6.7 |
-| 5-detect-inject | 6 | 83% | 100% | 100% | 0.0 | 17s | $0.087 | 7.5 |
-| 6-block | 6 | 100% | 100% | 100% | 0.5 | 17s | $0.095 | 8.0 |
+| Condition | Runs | Compliant | Task done | Skill loaded | Median time | Avg cost | Avg turns |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 0-none | 18 | 33% | 100% | 0% | 14s | $0.082 | 5.7 |
+| 1-claude-md | 18 | 100% | 100% | 0% | 11s | $0.075 | 5.1 |
+| 2-skill | 18 | 94% | 100% | 100% | 14s | $0.089 | 7.8 |
+| 3-skill-directive | 18 | 100% | 100% | 100% | 14s | $0.089 | 7.9 |
+| 4-inject | 18 | 100% | 100% | 100% | 12s | $0.080 | 7.1 |
+| 5-detect-inject | 18 | 100% | 100% | 100% | 16s | $0.098 | 8.3 |
+| 6-block | 18 | 100% | 94% | 100% | 14s | $0.097 | 8.2 |
 
-Compliant = runs with no violation among runs that added a log line. 0 run(s) failed and are excluded.
+Compliant = runs that log no personal data (LLM judge on each diff), among runs that added a log line. 0 run(s) failed and are excluded.
 Model: sonnet.

@@ -97,6 +97,13 @@ async function runOne(condition, task, rep) {
     violations,
     skillLoaded: toolUses.some((t) => t.name === 'Skill' && JSON.stringify(t.input).includes('logging-policy')),
     blocked: toolResults.filter((r) => JSON.stringify(r.content).includes('Logging policy')).length,
+    // The code the agent proposed when an edit was refused, to tell real attempts from false alarms.
+    refusals: toolResults
+      .filter((r) => JSON.stringify(r.content).includes('Logging policy'))
+      .map((r) => {
+        const input = toolUses.find((t) => t.id === r.tool_use_id)?.input ?? {};
+        return input.new_string ?? input.content ?? '';
+      }),
     costUsd: result.total_cost_usd ?? null,
     durationMs: result.duration_ms ?? null,
     turns: result.num_turns ?? null,

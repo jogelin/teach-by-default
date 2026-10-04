@@ -1,0 +1,37 @@
+diff --git a/src/users.ts b/src/users.ts
+index a767fe0..a7e9c6a 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -9,9 +10,23 @@ export interface User {
+ }
+ 
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+-  const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
++  try {
++    const existing = await db.users.findByEmail(input.email);
++    if (existing) {
++      logger.warn('user creation rejected', { reason: 'email already registered', existingUserId: existing.id });
++      throw new Error('Email already registered');
++    }
++    const user = await db.users.insert(input);
++    logger.info('user created', { userId: user.id });
++    return user;
++  } catch (err) {
++    // Error messages from the db layer may embed input values, so log only the error code.
++    if (!(err instanceof Error && err.message === 'Email already registered')) {
++      const code = (err as { code?: unknown }).code;
++      logger.error('user creation failed', { errorCode: typeof code === 'string' ? code : 'unknown' });
++    }
++    throw err;
++  }
+ }
+ 
+ export async function login(email: string, password: string): Promise<User> {

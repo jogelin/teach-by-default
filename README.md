@@ -1,46 +1,54 @@
 # Teach by default, enforce by exception, measure to decide
 
-A small, reproducible benchmark for one question: **how do you make a coding agent follow your rules?**
+A small example of how to make a coding agent follow a rule, and a benchmark that measures it.
 
-Most advice says "add hooks and permissions". But checks inside the agent are like email validation in an HTML form: useful feedback, not security, because anyone can call the model through another client. This repo measures the alternatives on one realistic rule.
+Checks inside the agent (permissions, blocking hooks) are like email validation in an HTML form: useful feedback, not security, because anyone can call the model through another client. This repository shows the alternative on one realistic rule.
 
 ## The rule
 
 > Never log personal data (email, name, phone, address, password, tokens, whole user objects). Always use the shared `logger`, with ids only.
 
-It is enforced by one checker, [`guard/check.mjs`](guard/check.mjs), used in three places: the agent hooks, the benchmark grader and [CI](.github/workflows/logging-policy.yml), the backend check that holds whoever wrote the code.
+## The setup, in three files
 
-## The conditions
+| Idea | File | What it does |
+|---|---|---|
+| **Teach by default** | [`.claude/skills/logging-policy/SKILL.md`](.claude/skills/logging-policy/SKILL.md) | Explains the rule, why it exists and what good looks like. The description says when to load it. |
+| | [`.claude/hooks/inject-rule.mjs`](.claude/hooks/inject-rule.mjs) | Adds the rule to the context on every prompt, for the few rules that must always be there. |
+| **Enforce by exception** | [`.github/workflows/logging-policy.yml`](.github/workflows/logging-policy.yml) | Runs [`guard/check.mjs`](guard/check.mjs) on every pull request. As a required check, it holds whoever wrote the code. |
 
-The same six tasks ([`bench/tasks.json`](bench/tasks.json)) run against a small user service ([`fixture/`](fixture)). None of the prompts mentions the policy; each one makes logging personal data tempting.
+The service the agent works on is in [`src/`](src): a few functions and a shared logger.
 
-| Condition | What the agent gets |
-|---|---|
-| `0-none` | Nothing |
-| `1-claude-md` | The rule in `CLAUDE.md` |
-| `2-skill` | A `logging-policy` skill with a plain description |
-| `3-skill-directive` | The same skill with a directive description ("ALWAYS use this skill before…") |
-| `4-inject` | The skill, plus a `UserPromptSubmit` hook that injects the rule on every prompt |
-| `5-detect-inject` | The skill, plus a `PostToolUse` hook that checks each edit and tells the model what is wrong, without blocking (the model of Anthropic's security-guidance plugin) |
-| `6-block` | The skill, plus a `PreToolUse` hook that refuses a violating edit |
+## The results
 
-## Run it
+Six everyday tasks (add logging to sign-up, password reset, failed logins, email changes, checkout, address updates). None mentions the rule. Each ran three times under seven setups, with Claude Sonnet.
 
-Requires Node 22+ and Claude Code, signed in.
+| Setup | Compliant | Task done | Median time | Avg cost |
+|---|---|---|---|---|
+| Nothing | 33% | 100% | 14s | $0.082 |
+| Rule in `CLAUDE.md` | 100% | 100% | 11s | $0.075 |
+| Skill | 94% | 100% | 14s | $0.089 |
+| Skill, directive description | 100% | 100% | 14s | $0.089 |
+| Skill + rule injected | 100% | 100% | 12s | $0.080 |
+| Skill + detect and tell | 100% | 100% | 16s | $0.098 |
+| Skill + block | 100% | 94% | 14s | $0.097 |
+
+- Teaching, in any form, takes the agent from 33% to 94–100%.
+- The blocking hook refused 11 edits. All 11 were compliant code (`err.name`, `user.address !== address`) flagged by a pattern match. One run gave up after two refusals.
+
+## Measure it yourself
+
+The benchmark lives in [`bench/`](bench). It needs Node 22+ and Claude Code, signed in.
 
 ```bash
-node --test guard/check.test.mjs
-node bench/run.mjs --reps 3 --model sonnet
-node bench/report.mjs
+node --test guard/check.test.mjs   # the checker's own tests
+node bench/run.mjs --reps 3        # every task under every setup, in fresh copies
+node bench/judge.mjs               # a small model reviews each diff
+node bench/report.mjs              # the table above
 ```
 
-Each run happens in a fresh temporary copy with `--setting-sources project`, so your own plugins, hooks and skills do not leak in. Every diff is kept in `results/diffs/` for review.
-
-## Results
-
-See [`results/README.md`](results/README.md).
+Each run uses `--setting-sources project`, so your own plugins, hooks and skills stay out. Every diff is kept in [`bench/results/diffs/`](bench/results/diffs).
 
 ## Limits
 
-- One rule, six tasks, one model per run. Read the numbers as a direction, not a law.
-- The grader is a static checker: it can miss creative leaks and flag rare false positives. The diffs are there to check it.
+- One rule, six tasks, one model. Read the numbers as a direction.
+- Compliance is judged by a smaller model on each diff. The static checker alone flags too many harmless lines to be used as the grade, which is one of the findings.

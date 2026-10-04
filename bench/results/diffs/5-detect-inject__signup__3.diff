@@ -1,0 +1,45 @@
+diff --git a/src/users.ts b/src/users.ts
+index a767fe0..1c58272 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -9,9 +10,31 @@ export interface User {
+ }
+ 
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+-  const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
++  let existing: User | null;
++  try {
++    existing = await db.users.findByEmail(input.email);
++  } catch (err) {
++    logger.error('create user failed', { step: 'lookup', errorType: errorType(err) });
++    throw err;
++  }
++  if (existing) {
++    logger.warn('create user rejected', { reason: 'email already registered', existingUserId: existing.id });
++    throw new Error('Email already registered');
++  }
++  try {
++    const user = await db.users.insert(input);
++    logger.info('user created', { userId: user.id });
++    return user;
++  } catch (err) {
++    logger.error('create user failed', { step: 'insert', errorType: errorType(err) });
++    throw err;
++  }
++}
++
++// Error messages from the db layer can echo input values (e.g. a duplicate-key
++// message containing the email), so only the error type is logged.
++function errorType(err: unknown): string {
++  return err instanceof Error ? err.name : typeof err;
+ }
+ 
+ export async function login(email: string, password: string): Promise<User> {

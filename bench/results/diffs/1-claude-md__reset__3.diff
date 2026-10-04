@@ -1,0 +1,18 @@
+diff --git a/src/users.ts b/src/users.ts
+index a767fe0..fc85b40 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -27,6 +28,7 @@ export async function resetPassword(email: string): Promise<void> {
+   if (!user) return;
+   const token = await db.passwords.createResetToken(user.id);
+   await db.mail.send(user.email, 'Reset your password', `Your link: https://app.example.com/reset/${token}`);
++  logger.info('Password reset email sent', { userId: user.id });
+ }
+ 
+ export async function updateEmail(userId: string, newEmail: string): Promise<void> {
