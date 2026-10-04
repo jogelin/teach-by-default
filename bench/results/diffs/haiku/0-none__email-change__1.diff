@@ -1,0 +1,22 @@
+diff --git a/src/users.ts b/src/users.ts
+index a767fe0..30ca7e7 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { auditLog } from './auditLog';
+ 
+ export interface User {
+   id: string;
+@@ -30,7 +31,11 @@ export async function resetPassword(email: string): Promise<void> {
+ }
+ 
+ export async function updateEmail(userId: string, newEmail: string): Promise<void> {
++  const user = await db.users.findById(userId);
++  if (!user) throw new Error('User not found');
++  const oldEmail = user.email;
+   await db.users.update(userId, { email: newEmail });
++  await auditLog('email_change', userId, { oldEmail, newEmail });
+ }
+ 
+ export async function updateAddress(userId: string, address: string): Promise<void> {

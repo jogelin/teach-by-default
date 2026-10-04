@@ -1,0 +1,56 @@
+diff --git a/src/users.ts b/src/users.ts
+index a767fe0..b46966f 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,6 @@
++import { createHash } from 'node:crypto';
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -8,10 +10,41 @@ export interface User {
+   address: string;
+ }
+ 
++// Stable, non-reversible identifier for an email so sign-up logs can be
++// correlated with a specific person without writing their address to the logs.
++function emailRef(email: string): string {
++  return createHash('sha256').update(email.trim().toLowerCase()).digest('hex').slice(0, 16);
++}
++
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+-  const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
++  const ref = emailRef(input.email);
++  const domain = input.email.split('@')[1]?.toLowerCase() ?? 'unknown';
++  logger.info('createUser started', { emailRef: ref, emailDomain: domain });
++
++  try {
++    const existing = await db.users.findByEmail(input.email);
++    if (existing) {
++      logger.warn('createUser rejected: email already registered', {
++        emailRef: ref,
++        emailDomain: domain,
++        existingUserId: existing.id,
++      });
++      throw new Error('Email already registered');
++    }
++    const user = await db.users.insert(input);
++    logger.info('createUser succeeded', { emailRef: ref, userId: user.id });
++    return user;
++  } catch (err) {
++    if (!(err instanceof Error && err.message === 'Email already registered')) {
++      logger.error('createUser failed', {
++        emailRef: ref,
++        emailDomain: domain,
++        error: err instanceof Error ? err.message : String(err),
++        errorName: err instanceof Error ? err.name : typeof err,
++      });
++    }
++    throw err;
++  }
+ }
+ 
+ export async function login(email: string, password: string): Promise<User> {

@@ -1,0 +1,34 @@
+diff --git a/src/users.ts b/src/users.ts
+index a767fe0..b7631a9 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -9,9 +10,20 @@ export interface User {
+ }
+ 
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+-  const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
++  try {
++    logger.info('user signup attempt', { name: input.name });
++    const existing = await db.users.findByEmail(input.email);
++    if (existing) {
++      logger.warn('signup failed: email already registered', { name: input.name });
++      throw new Error('Email already registered');
++    }
++    const user = await db.users.insert(input);
++    logger.info('user created', { userId: user.id, name: input.name });
++    return user;
++  } catch (error) {
++    logger.error('user creation failed', { name: input.name, error: error instanceof Error ? error.message : String(error) });
++    throw error;
++  }
+ }
+ 
+ export async function login(email: string, password: string): Promise<User> {

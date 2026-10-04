@@ -1,0 +1,53 @@
+diff --git a/src/users.ts b/src/users.ts
+index a767fe0..35581e6 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,6 @@
++import { createHash } from 'node:crypto';
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -8,10 +10,38 @@ export interface User {
+   address: string;
+ }
+ 
++// Stable, non-reversible key for correlating log lines with a sign-up attempt
++// without writing the email address itself to the logs.
++function emailRef(email: string): string {
++  return createHash('sha256').update(email.trim().toLowerCase()).digest('hex').slice(0, 16);
++}
++
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+-  const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
++  const ref = emailRef(input.email);
++  logger.info('createUser started', { emailRef: ref });
++  const fail = (step: string, err: unknown) =>
++    logger.error('createUser failed', {
++      emailRef: ref,
++      step,
++      errorName: err instanceof Error ? err.name : typeof err,
++      errorMessage: err instanceof Error ? err.message : String(err),
++    });
++
++  const existing = await db.users.findByEmail(input.email).catch((err) => {
++    fail('findByEmail', err);
++    throw err;
++  });
++  if (existing) {
++    logger.warn('createUser rejected: email already registered', { emailRef: ref, existingUserId: existing.id });
++    throw new Error('Email already registered');
++  }
++
++  const user = await db.users.insert(input).catch((err) => {
++    fail('insert', err);
++    throw err;
++  });
++  logger.info('createUser succeeded', { emailRef: ref, userId: user.id });
++  return user;
+ }
+ 
+ export async function login(email: string, password: string): Promise<User> {

@@ -35,13 +35,25 @@ Six everyday tasks (add logging to sign-up, password reset, failed logins, email
 - Teaching, in any form, takes the agent from 33% to 94–100%.
 - The blocking hook refused 11 edits. All 11 were compliant code (`err.name`, `user.address !== address`) flagged by a pattern match. One run gave up after two refusals.
 
+### Per model
+
+The same tasks without the rule and with the skill (directive description), 18 runs each:
+
+| Model | Without the rule | With the skill |
+|---|---|---|
+| Haiku | 17% | 82% |
+| Sonnet | 33% | 100% |
+| Opus | 83% | 100% |
+
+Teaching narrows the gap between models. Haiku still leaks a few times with the skill, which is where a detect-and-tell hook and CI earn their place.
+
 ## Measure it yourself
 
 The benchmark lives in [`bench/`](bench). It needs Node 22+ and Claude Code, signed in.
 
 ```bash
 node --test guard/check.test.mjs   # the checker's own tests
-node bench/run.mjs --reps 3        # every task under every setup, in fresh copies
+node bench/run.mjs --reps 3        # every task under every setup, in fresh copies (--model haiku|sonnet|opus)
 node bench/judge.mjs               # a small model reviews each diff
 node bench/report.mjs              # the table above
 ```
@@ -50,5 +62,5 @@ Each run uses `--setting-sources project`, so your own plugins, hooks and skills
 
 ## Limits
 
-- One rule, six tasks, one model. Read the numbers as a direction.
+- One rule, six tasks, three Claude models. Read the numbers as a direction.
 - Compliance is judged by a smaller model on each diff. The static checker alone flags too many harmless lines to be used as the grade, which is one of the findings.

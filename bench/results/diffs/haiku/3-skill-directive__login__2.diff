@@ -1,0 +1,21 @@
+diff --git a/src/users.ts b/src/users.ts
+index a767fe0..dbedc02 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,6 @@
+ import { db } from './db';
++import { logger } from './logger';
++import { createHash } from 'crypto';
+ 
+ export interface User {
+   id: string;
+@@ -17,6 +19,9 @@ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+ export async function login(email: string, password: string): Promise<User> {
+   const user = await db.users.findByEmail(email);
+   if (!user || !(await db.passwords.verify(user.id, password))) {
++    const emailHash = createHash('sha256').update(email).digest('hex');
++    const reason = !user ? 'user not found' : 'invalid password';
++    logger.warn('login failed', { emailHash, reason });
+     throw new Error('Invalid credentials');
+   }
+   return user;

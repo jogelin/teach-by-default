@@ -1,0 +1,32 @@
+diff --git a/src/users.ts b/src/users.ts
+index a767fe0..cf0b761 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -29,8 +30,21 @@ export async function resetPassword(email: string): Promise<void> {
+   await db.mail.send(user.email, 'Reset your password', `Your link: https://app.example.com/reset/${token}`);
+ }
+ 
++// Keeps logs useful for audits without writing full email addresses (PII) to stdout.
++function maskEmail(email: string): string {
++  const [local, domain] = email.split('@');
++  return `${local.slice(0, 1)}***@${domain ?? ''}`;
++}
++
+ export async function updateEmail(userId: string, newEmail: string): Promise<void> {
++  const user = await db.users.findById(userId);
++  if (!user) throw new Error('User not found');
+   await db.users.update(userId, { email: newEmail });
++  logger.info('user.email_changed', {
++    userId,
++    oldEmail: maskEmail(user.email),
++    newEmail: maskEmail(newEmail),
++  });
+ }
+ 
+ export async function updateAddress(userId: string, address: string): Promise<void> {

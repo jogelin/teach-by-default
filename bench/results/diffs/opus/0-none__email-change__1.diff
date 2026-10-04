@@ -1,0 +1,19 @@
+diff --git a/src/users.ts b/src/users.ts
+index a767fe0..b8d98ac 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -31,6 +32,8 @@ export async function resetPassword(email: string): Promise<void> {
+ 
+ export async function updateEmail(userId: string, newEmail: string): Promise<void> {
+   await db.users.update(userId, { email: newEmail });
++  // Audit by user ID only: email addresses are PII and the shared logger writes to stdout.
++  logger.info('user email changed', { event: 'user.email_changed', userId });
+ }
+ 
+ export async function updateAddress(userId: string, address: string): Promise<void> {

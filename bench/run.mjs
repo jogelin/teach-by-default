@@ -82,8 +82,8 @@ async function runOne(condition, task, rep) {
   const logCallsAdded = countLogCalls(dir) - before;
   const diff = execFileSync('git', ['diff'], { cwd: dir, encoding: 'utf8' });
   const id = `${condition}__${task.id}__${rep}`;
-  mkdirSync(join(root, 'bench/results/diffs'), { recursive: true });
-  writeFileSync(join(root, 'bench/results/diffs', `${id}.diff`), diff);
+  mkdirSync(join(root, 'bench/results/diffs', opts.model), { recursive: true });
+  writeFileSync(join(root, 'bench/results/diffs', opts.model, `${id}.diff`), diff);
   rmSync(dir, { recursive: true, force: true });
   return {
     id,

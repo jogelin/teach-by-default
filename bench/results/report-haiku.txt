@@ -1,0 +1,7 @@
+| Condition | Runs | Compliant | Task done | Skill loaded | Median time | Avg cost | Avg turns |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 0-none | 18 | 17% | 100% | 0% | 11s | $0.039 | 3.4 |
+| 3-skill-directive | 18 | 82% | 94% | 100% | 17s | $0.046 | 6.0 |
+
+Compliant = runs that log no personal data (LLM judge on each diff), among runs that added a log line. 0 run(s) failed and are excluded.
+Model: haiku.

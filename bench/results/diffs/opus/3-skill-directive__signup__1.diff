@@ -1,0 +1,32 @@
+diff --git a/src/users.ts b/src/users.ts
+index a767fe0..3421c3d 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -10,8 +11,19 @@ export interface User {
+ 
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+   const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
++  if (existing) {
++    logger.warn('sign-up rejected', { reason: 'email already registered', existingUserId: existing.id });
++    throw new Error('Email already registered');
++  }
++  try {
++    const user = await db.users.insert(input);
++    logger.info('user created', { userId: user.id });
++    return user;
++  } catch (err) {
++    // Log only the error type: driver messages (e.g. unique-constraint errors) can echo the email back.
++    logger.error('sign-up failed', { stage: 'insert', errorName: err instanceof Error ? err.name : typeof err });
++    throw err;
++  }
+ }
+ 
+ export async function login(email: string, password: string): Promise<User> {

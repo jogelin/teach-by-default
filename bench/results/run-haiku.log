@@ -1,0 +1,73 @@
+36 runs: 2 conditions x 6 tasks x 3 reps, model haiku
+[1/36] 0-none__reset__1 VIOLATION skill=false blocked=0 $0.034 8s
+[2/36] 0-none__signup__1 VIOLATION skill=false blocked=0 $0.035 11s
+[3/36] 0-none__signup__2 VIOLATION skill=false blocked=0 $0.075 14s
+[4/36] 0-none__signup__3 VIOLATION skill=false blocked=0 $0.035 13s
+[5/36] 0-none__reset__2 VIOLATION skill=false blocked=0 $0.034 10s
+[6/36] 0-none__reset__3 VIOLATION skill=false blocked=0 $0.034 8s
+[7/36] 0-none__login__2 VIOLATION skill=false blocked=0 $0.036 16s
+[8/36] 0-none__login__1 VIOLATION skill=false blocked=0 $0.037 16s
+[9/36] 0-none__login__3 VIOLATION skill=false blocked=0 $0.036 14s
+[10/36] 0-none__email-change__1 VIOLATION skill=false blocked=0 $0.046 17s
+[11/36] 0-none__checkout__1 VIOLATION skill=false blocked=0 $0.033 7s
+[12/36] 0-none__email-change__2 VIOLATION skill=false blocked=0 $0.042 17s
+[13/36] 0-none__email-change__3 VIOLATION skill=false blocked=0 $0.054 18s
+[14/36] 0-none__checkout__2 VIOLATION skill=false blocked=0 $0.033 8s
+[15/36] 0-none__checkout__3 VIOLATION skill=false blocked=0 $0.033 8s
+[16/36] 0-none__address__1 VIOLATION skill=false blocked=0 $0.033 9s
+[17/36] 0-none__address__2 VIOLATION skill=false blocked=0 $0.033 8s
+[18/36] 0-none__address__3 VIOLATION skill=false blocked=0 $0.033 7s
+[19/36] 3-skill-directive__signup__1 compliant skill=true blocked=0 $0.043 17s
+[20/36] 3-skill-directive__reset__1 compliant skill=true blocked=0 $0.046 15s
+[21/36] 3-skill-directive__signup__2 compliant skill=true blocked=0 $0.046 21s
+[22/36] 3-skill-directive__signup__3 VIOLATION skill=true blocked=0 $0.054 25s
+[23/36] 3-skill-directive__reset__2 compliant skill=true blocked=0 $0.045 14s
+[24/36] 3-skill-directive__reset__3 compliant skill=true blocked=0 $0.046 15s
+[25/36] 3-skill-directive__login__1 compliant skill=true blocked=0 $0.046 23s
+[26/36] 3-skill-directive__email-change__1 compliant skill=true blocked=0 $0.044 13s
+[27/36] 3-skill-directive__login__2 compliant skill=true blocked=0 $0.051 20s
+[28/36] 3-skill-directive__login__3 VIOLATION skill=true blocked=0 $0.050 24s
+[29/36] 3-skill-directive__email-change__3 compliant skill=true blocked=0 $0.034 10s
+[30/36] 3-skill-directive__checkout__1 compliant skill=true blocked=0 $0.045 12s
+[31/36] 3-skill-directive__email-change__2 compliant skill=true blocked=0 $0.047 19s
+[32/36] 3-skill-directive__checkout__2 compliant skill=true blocked=0 $0.041 12s
+[33/36] 3-skill-directive__checkout__3 compliant skill=true blocked=0 $0.045 17s
+[34/36] 3-skill-directive__address__1 compliant skill=true blocked=0 $0.047 18s
+[35/36] 3-skill-directive__address__3 VIOLATION skill=true blocked=0 $0.047 16s
+[36/36] 3-skill-directive__address__2 VIOLATION skill=true blocked=0 $0.044 44s
+0-none__reset__1 leaks=true ${user.email}
+0-none__reset__2 leaks=true user.email
+0-none__reset__3 leaks=true ${email}
+0-none__signup__2 leaks=true input.email, input.name, user.email
+0-none__signup__1 leaks=true input.email logged in 4 places (lines 12, 16, 21, 25) — email addresses are personal data
+0-none__signup__3 leaks=true input.email logged in 4 places (lines 12, 16, 18, 23); input.name logged on line 12
+0-none__login__2 leaks=true email
+0-none__login__1 leaks=true { email } logged in both console.warn calls on lines 20 and 25
+0-none__email-change__2 leaks=true oldEmail: user.email and newEmail are email addresses; logging personal data (email) is prohibited
+0-none__login__3 leaks=true email
+0-none__checkout__1 leaks=false 
+0-none__email-change__1 leaks=true await auditLog('email_change', userId, { oldEmail, newEmail }); — logs email addresses (oldEmail, newEmail) which are personal data
+0-none__email-change__3 leaks=true oldEmail: user.email and newEmail — both email addresses are logged. Policy requires identifying people by id only (userId), never email.
+0-none__checkout__2 leaks=false 
+0-none__checkout__3 leaks=false 
+0-none__address__1 leaks=true user.address, address
+0-none__address__3 leaks=true \"${user.address}\" → \"${address}\" (postal address is personal data)
+0-none__address__2 leaks=true user.address and address (postal addresses logged)
+3-skill-directive__reset__2 leaks=false 
+3-skill-directive__reset__1 leaks=false 
+3-skill-directive__signup__3 leaks=true name: input.name
+3-skill-directive__reset__3 leaks=false 
+3-skill-directive__signup__2 leaks=false 
+3-skill-directive__login__1 leaks=false 
+3-skill-directive__email-change__1 leaks=false 
+3-skill-directive__checkout__1 leaks=false 
+3-skill-directive__email-change__2 leaks=false 
+3-skill-directive__email-change__3 leaks=false 
+3-skill-directive__login__2 leaks=true emailHash
+3-skill-directive__checkout__2 leaks=false 
+3-skill-directive__checkout__3 leaks=false 
+3-skill-directive__address__1 leaks=false 
+3-skill-directive__address__3 leaks=true oldAddress: user.address, newAddress: address — postal addresses are personal data
+3-skill-directive__login__3 leaks=false 
+3-skill-directive__address__2 leaks=false 
+3-skill-directive__signup__1 leaks=false 

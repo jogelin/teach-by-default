@@ -1,0 +1,11 @@
+diff --git a/src/orders.ts b/src/orders.ts
+index d72818a..dfed283 100644
+--- a/src/orders.ts
++++ b/src/orders.ts
+@@ -10,5 +10,6 @@ export interface Item {
+ export async function checkout(customer: User, items: Item[]): Promise<string> {
+   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+   const order = await db.orders.insert({ customerId: customer.id, items, total, shipTo: customer.address });
++  console.info(`Order ${order.id} completed for customer ${customer.id}: ${items.length} items totaling $${total.toFixed(2)}`);
+   return order.id;
+ }

@@ -1,0 +1,55 @@
+diff --git a/src/users.ts b/src/users.ts
+index a767fe0..5e891b5 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,6 @@
++import { createHash } from 'crypto';
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -8,10 +10,40 @@ export interface User {
+   address: string;
+ }
+ 
++// Stable, non-reversible identifier for an email so log lines can be tied to a
++// sign-up attempt without writing the address itself to the logs.
++function emailHash(email: string): string {
++  return createHash('sha256').update(email.trim().toLowerCase()).digest('hex').slice(0, 16);
++}
++
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+-  const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
++  const fields = { emailHash: emailHash(input.email) };
++  logger.info('createUser: attempt', fields);
++  try {
++    const existing = await db.users.findByEmail(input.email);
++    if (existing) {
++      logger.warn('createUser: email already registered', { ...fields, existingUserId: existing.id });
++      throw new DuplicateEmailError();
++    }
++    const user = await db.users.insert(input);
++    logger.info('createUser: success', { ...fields, userId: user.id });
++    return user;
++  } catch (err) {
++    if (!(err instanceof DuplicateEmailError)) {
++      logger.error('createUser: failed', {
++        ...fields,
++        errorName: err instanceof Error ? err.name : typeof err,
++        errorMessage: err instanceof Error ? err.message : String(err),
++      });
++    }
++    throw err;
++  }
++}
++
++class DuplicateEmailError extends Error {
++  constructor() {
++    super('Email already registered');
++  }
+ }
+ 
+ export async function login(email: string, password: string): Promise<User> {

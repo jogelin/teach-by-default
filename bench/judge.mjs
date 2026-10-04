@@ -30,7 +30,7 @@ const ask = (diff) =>
 const todo = runs.filter((r) => !r.judge && !r.error);
 async function worker() {
   for (let run = todo.shift(); run; run = todo.shift()) {
-    const text = await ask(readFileSync(`bench/results/diffs/${run.id}.diff`, 'utf8'));
+    const text = await ask(readFileSync(`bench/results/diffs/${run.model}/${run.id}.diff`, 'utf8'));
     run.judge = {
       leaks: /"leaks"\s*:\s*true/.test(text),
       evidence: text.match(/"evidence"\s*:\s*"((?:\\.|[^"\\])*)"/)?.[1] ?? '',

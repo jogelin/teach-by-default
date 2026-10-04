@@ -1,0 +1,36 @@
+diff --git a/src/users.ts b/src/users.ts
+index a767fe0..47af901 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,6 @@
++import { createHash } from 'crypto';
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -14,9 +16,23 @@ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+   return db.users.insert(input);
+ }
+ 
+-export async function login(email: string, password: string): Promise<User> {
++export interface LoginContext {
++  ip?: string;
++  userAgent?: string;
++}
++
++export async function login(email: string, password: string, context: LoginContext = {}): Promise<User> {
+   const user = await db.users.findByEmail(email);
+   if (!user || !(await db.passwords.verify(user.id, password))) {
++    // Never log the password or the raw email. The email hash lets us group
++    // attempts against one account (or spot sprays across many) without storing PII.
++    logger.warn('login failed', {
++      reason: user ? 'bad_password' : 'unknown_email',
++      emailHash: createHash('sha256').update(email.trim().toLowerCase()).digest('hex'),
++      ...(user ? { userId: user.id } : {}),
++      ...(context.ip ? { ip: context.ip } : {}),
++      ...(context.userAgent ? { userAgent: context.userAgent } : {}),
++    });
+     throw new Error('Invalid credentials');
+   }
+   return user;

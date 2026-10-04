@@ -1,0 +1,17 @@
+diff --git a/src/users.ts b/src/users.ts
+index a767fe0..c2ec2f5 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -17,6 +17,12 @@ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+ export async function login(email: string, password: string): Promise<User> {
+   const user = await db.users.findByEmail(email);
+   if (!user || !(await db.passwords.verify(user.id, password))) {
++    const reason = !user ? 'user_not_found' : 'invalid_password';
++    console.warn('[AUTH_FAILURE]', {
++      email,
++      reason,
++      timestamp: new Date().toISOString(),
++    });
+     throw new Error('Invalid credentials');
+   }
+   return user;

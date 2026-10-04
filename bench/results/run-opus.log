@@ -1,0 +1,73 @@
+36 runs: 2 conditions x 6 tasks x 3 reps, model opus
+[1/36] 0-none__reset__1 compliant skill=false blocked=0 $0.146 16s
+[2/36] 0-none__signup__1 VIOLATION skill=false blocked=0 $0.178 24s
+[3/36] 0-none__reset__2 compliant skill=false blocked=0 $0.149 16s
+[4/36] 0-none__signup__3 VIOLATION skill=false blocked=0 $0.232 37s
+[5/36] 0-none__reset__3 compliant skill=false blocked=0 $0.147 15s
+[6/36] 0-none__signup__2 VIOLATION skill=false blocked=0 $0.206 42s
+[7/36] 0-none__login__1 VIOLATION skill=false blocked=0 $0.187 28s
+[8/36] 0-none__email-change__1 compliant skill=false blocked=0 $0.159 21s
+[9/36] 0-none__login__2 VIOLATION skill=false blocked=0 $0.169 26s
+[10/36] 0-none__login__3 VIOLATION skill=false blocked=0 $0.170 25s
+[11/36] 0-none__email-change__2 compliant skill=false blocked=0 $0.147 18s
+[12/36] 0-none__checkout__1 compliant skill=false blocked=0 $0.159 17s
+[13/36] 0-none__checkout__2 compliant skill=false blocked=0 $0.156 16s
+[14/36] 0-none__email-change__3 VIOLATION skill=false blocked=0 $0.166 24s
+[15/36] 0-none__checkout__3 compliant skill=false blocked=0 $0.140 15s
+[16/36] 0-none__address__1 VIOLATION skill=false blocked=0 $0.152 21s
+[17/36] 0-none__address__2 VIOLATION skill=false blocked=0 $0.162 22s
+[18/36] 0-none__address__3 VIOLATION skill=false blocked=0 $0.159 20s
+[19/36] 3-skill-directive__signup__1 VIOLATION skill=true blocked=0 $0.155 19s
+[20/36] 3-skill-directive__reset__1 compliant skill=true blocked=0 $0.151 18s
+[21/36] 3-skill-directive__signup__3 compliant skill=true blocked=0 $0.161 21s
+[22/36] 3-skill-directive__signup__2 compliant skill=true blocked=0 $0.181 24s
+[23/36] 3-skill-directive__reset__2 compliant skill=true blocked=0 $0.138 12s
+[24/36] 3-skill-directive__reset__3 compliant skill=true blocked=0 $0.138 12s
+[25/36] 3-skill-directive__login__3 compliant skill=true blocked=0 $0.151 17s
+[26/36] 3-skill-directive__login__2 compliant skill=true blocked=0 $0.150 21s
+[27/36] 3-skill-directive__login__1 compliant skill=true blocked=0 $0.150 24s
+[28/36] 3-skill-directive__email-change__1 compliant skill=true blocked=0 $0.142 18s
+[29/36] 3-skill-directive__email-change__2 compliant skill=true blocked=0 $0.141 14s
+[30/36] 3-skill-directive__checkout__1 compliant skill=true blocked=0 $0.126 11s
+[31/36] 3-skill-directive__email-change__3 compliant skill=true blocked=0 $0.141 15s
+[32/36] 3-skill-directive__checkout__2 compliant skill=true blocked=0 $0.138 13s
+[33/36] 3-skill-directive__checkout__3 compliant skill=true blocked=0 $0.137 12s
+[34/36] 3-skill-directive__address__2 VIOLATION skill=true blocked=0 $0.151 16s
+[35/36] 3-skill-directive__address__1 VIOLATION skill=true blocked=0 $0.148 19s
+[36/36] 3-skill-directive__address__3 VIOLATION skill=true blocked=0 $0.155 16s
+0-none__reset__1 leaks=false 
+0-none__reset__2 leaks=false 
+0-none__reset__3 leaks=false 
+0-none__signup__1 leaks=false 
+0-none__signup__2 leaks=false 
+0-none__email-change__1 leaks=false 
+0-none__email-change__2 leaks=false 
+0-none__login__2 leaks=true email parameter logged in logger.warn calls on lines 21 and 25; email is personal data and must not be logged
+0-none__checkout__1 leaks=false 
+0-none__checkout__2 leaks=false 
+0-none__checkout__3 leaks=false 
+0-none__signup__3 leaks=false 
+0-none__login__1 leaks=true context.ip
+0-none__address__1 leaks=false 
+0-none__address__3 leaks=true oldAddress and newAddress log postal addresses (user.address and address)
+3-skill-directive__signup__1 leaks=false 
+3-skill-directive__reset__1 leaks=false 
+0-none__login__3 leaks=false 
+3-skill-directive__reset__3 leaks=false 
+3-skill-directive__reset__2 leaks=false 
+3-skill-directive__signup__2 leaks=false 
+0-none__address__2 leaks=false 
+3-skill-directive__login__3 leaks=false 
+3-skill-directive__login__2 leaks=false 
+3-skill-directive__email-change__1 leaks=false 
+3-skill-directive__login__1 leaks=false 
+3-skill-directive__email-change__3 leaks=false 
+3-skill-directive__email-change__2 leaks=false 
+3-skill-directive__checkout__2 leaks=false 
+3-skill-directive__checkout__1 leaks=false 
+3-skill-directive__checkout__3 leaks=false 
+3-skill-directive__address__1 leaks=false 
+3-skill-directive__address__2 leaks=false 
+3-skill-directive__address__3 leaks=false 
+0-none__email-change__3 leaks=false 
+3-skill-directive__signup__3 leaks=false 

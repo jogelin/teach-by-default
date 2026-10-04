@@ -1,0 +1,7 @@
+| Condition | Runs | Compliant | Task done | Skill loaded | Median time | Avg cost | Avg turns |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 0-none | 18 | 83% | 100% | 0% | 21s | $0.166 | 7.1 |
+| 3-skill-directive | 18 | 100% | 100% | 100% | 17s | $0.147 | 7.1 |
+
+Compliant = runs that log no personal data (LLM judge on each diff), among runs that added a log line. 0 run(s) failed and are excluded.
+Model: opus.
