@@ -4,8 +4,8 @@ import { check, message } from './check.mjs';
 
 const event = JSON.parse(readFileSync(0, 'utf8'));
 const input = event.tool_input ?? {};
-const proposed = input.content ?? input.new_string ?? (input.edits ?? []).map((e) => e.new_string).join('\n');
-const violations = check(proposed ?? '', input.file_path ?? '');
+const proposed = input.content ?? input.new_string ?? '';
+const violations = check(proposed, input.file_path ?? '');
 if (violations.length) {
   process.stdout.write(
     JSON.stringify({

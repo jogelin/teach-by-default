@@ -5,7 +5,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const PII = /\b(email|e?mail|name|fullName|firstName|lastName|phone|address|password|token|ip)\b/i;
+const PII = /\b(e?mail|name|fullName|firstName|lastName|phone|address|password|token|ip)\b/i;
 // Passing a whole user-like object logs every field. `user.id` and `userId` are fine.
 const WHOLE_OBJECT = /\b(user|customer|input|existing|body)\b(?!\s*\.\s*id\b)/;
 

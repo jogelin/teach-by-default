@@ -1,8 +1,8 @@
-// Summarizes results/runs.jsonl into one table per condition.
-// Usage: node bench/report.mjs [bench/results/runs.jsonl]
-import { readFileSync, writeFileSync } from 'node:fs';
+// Prints one table per condition for a results file.
+// Usage: node bench/report.mjs [bench/results/runs-sonnet.jsonl]
+import { readFileSync } from 'node:fs';
 
-const file = process.argv[2] ?? 'bench/results/runs.jsonl';
+const file = process.argv[2] ?? new URL('results/runs-sonnet.jsonl', import.meta.url).pathname;
 const runs = readFileSync(file, 'utf8').trim().split('\n').map(JSON.parse).filter((r) => !r.error);
 const errors = readFileSync(file, 'utf8').trim().split('\n').map(JSON.parse).filter((r) => r.error).length;
 
@@ -36,5 +36,4 @@ const notes = [
   `Model: ${[...new Set(runs.map((r) => r.model))].join(', ')}.`,
 ].join('\n');
 
-writeFileSync('bench/results/README.md', `# Results\n\n${table}\n\n${notes}\n`);
 console.log(`${table}\n\n${notes}`);

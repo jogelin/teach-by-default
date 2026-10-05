@@ -8,13 +8,13 @@ Checks inside the agent (permissions, blocking hooks) are like email validation 
 
 > Never log personal data (email, name, phone, address, password, tokens, whole user objects). Always use the shared `logger`, with ids only.
 
-## The setup, in three files
+## The setup, in three ideas
 
 | Idea | File | What it does |
 |---|---|---|
 | **Teach by default** | [`.claude/skills/logging-policy/SKILL.md`](.claude/skills/logging-policy/SKILL.md) | Explains the rule, why it exists and what good looks like. The description says when to load it. |
-| | [`.claude/hooks/inject-rule.mjs`](.claude/hooks/inject-rule.mjs) | Adds the rule to the context on every prompt, for the few rules that must always be there. |
-| **Enforce by exception** | [`.github/workflows/logging-policy.yml`](.github/workflows/logging-policy.yml) | Runs [`guard/check.mjs`](guard/check.mjs) on every pull request. As a required check, it holds whoever wrote the code. |
+| | [`.claude/hooks/inject-rule.mjs`](.claude/hooks/inject-rule.mjs) + [`rule.txt`](.claude/hooks/rule.txt) | Adds the rule to the context on every prompt, for the few rules that must always be there. Wired in [`.claude/settings.json`](.claude/settings.json). |
+| **Enforce by exception** | [`.github/workflows/logging-policy.yml`](.github/workflows/logging-policy.yml) | Runs [`guard/check.mjs`](guard/check.mjs) on every push and pull request. As a required check, it holds whoever wrote the code. |
 
 The service the agent works on is in [`src/`](src): a few functions and a shared logger.
 
@@ -33,15 +33,15 @@ Six everyday tasks (add logging to sign-up, password reset, failed logins, email
 | Skill + block | 100% | 94% | 14s | $0.097 |
 
 - Teaching, in any form, takes the agent from 33% to 94–100%.
-- The blocking hook refused 11 edits. All 11 were compliant code (`err.name`, `user.address !== address`) flagged by a pattern match. One run gave up after two refusals.
+- The blocking hook refused 11 edits, across 6 of the 18 runs. All 11 were compliant code (`err.name`, `user.address !== address`) flagged by a pattern match. One run gave up after two refusals.
 
 ### Per model
 
 The same tasks without the rule and with the skill (directive description), 18 runs each:
 
-| Model | Without the rule | With the skill |
+| Model | Without the rule | With the skill (directive description) |
 |---|---|---|
-| Haiku | 17% | 82% |
+| Haiku | 17% | 82% (one run added no log line) |
 | Sonnet | 33% | 100% |
 | Opus | 83% | 100% |
 
@@ -53,12 +53,12 @@ The benchmark lives in [`bench/`](bench). It needs Node 22+ and Claude Code, sig
 
 ```bash
 node --test guard/check.test.mjs   # the checker's own tests
-node bench/run.mjs --reps 3        # every task under every setup, in fresh copies (--model haiku|sonnet|opus)
-node bench/judge.mjs               # a small model reviews each diff
-node bench/report.mjs              # the table above
+node bench/run.mjs --model sonnet                     # every task under every setup, 3 times, in fresh copies
+node bench/judge.mjs bench/results/runs-sonnet.jsonl  # a small model reviews each diff
+node bench/report.mjs bench/results/runs-sonnet.jsonl # one table per setup
 ```
 
-Each run uses `--setting-sources project`, so your own plugins, hooks and skills stay out. Every diff is kept in [`bench/results/diffs/`](bench/results/diffs).
+Each run uses `--setting-sources project`, so your own plugins, hooks and skills stay out. Results are appended to `bench/results/runs-<model>.jsonl` and every diff is kept in [`bench/results/diffs/`](bench/results/diffs). [`bench/results/README.md`](bench/results/README.md) has the full tables.
 
 ## Limits
 

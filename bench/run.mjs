@@ -1,14 +1,16 @@
 // Runs every task under every condition with headless Claude Code, then grades
 // the result with the same checker the hooks and CI use.
-// Usage: node bench/run.mjs [--reps 3] [--model sonnet] [--concurrency 3] [--conditions 0-none,6-block] [--tasks signup]
+// Usage: node bench/run.mjs [--model sonnet] [--reps 3] [--concurrency 3] [--conditions 0-none,6-block] [--tasks signup]
+// Results go to bench/results/runs-<model>.jsonl (appended), diffs to bench/results/diffs/<model>/.
 import { spawn, execFileSync } from 'node:child_process';
 import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { checkPaths } from '../guard/check.mjs';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = fileURLToPath(new URL('..', import.meta.url));
 const { values: opts } = parseArgs({
   options: {
     reps: { type: 'string', default: '3' },
@@ -16,7 +18,7 @@ const { values: opts } = parseArgs({
     concurrency: { type: 'string', default: '3' },
     conditions: { type: 'string' },
     tasks: { type: 'string' },
-    out: { type: 'string', default: 'bench/results/runs.jsonl' },
+    out: { type: 'string' },
   },
 });
 
@@ -63,6 +65,7 @@ function claude(dir, prompt) {
   ];
   return new Promise((resolve) => {
     const child = spawn('claude', args, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+    child.on('error', (err) => resolve([{ type: 'result', is_error: true, result: err.message }]));
     let out = '';
     child.stdout.on('data', (d) => (out += d));
     child.stderr.on('data', (d) => (out += d));
@@ -96,7 +99,6 @@ async function runOne(condition, task, rep) {
     compliant: violations.length === 0,
     violations,
     skillLoaded: toolUses.some((t) => t.name === 'Skill' && JSON.stringify(t.input).includes('logging-policy')),
-    blocked: toolResults.filter((r) => JSON.stringify(r.content).includes('Logging policy')).length,
     // The code the agent proposed when an edit was refused, to tell real attempts from false alarms.
     refusals: toolResults
       .filter((r) => JSON.stringify(r.content).includes('Logging policy'))
@@ -114,7 +116,7 @@ async function runOne(condition, task, rep) {
 
 const jobs = conditions.flatMap((c) => tasks.flatMap((t) => Array.from({ length: Number(opts.reps) }, (_, r) => [c, t, r + 1])));
 mkdirSync(join(root, 'bench/results'), { recursive: true });
-const out = join(root, opts.out);
+const out = join(root, opts.out ?? `bench/results/runs-${opts.model}.jsonl`);
 console.log(`${jobs.length} runs: ${conditions.length} conditions x ${tasks.length} tasks x ${opts.reps} reps, model ${opts.model}`);
 
 let next = 0;
@@ -125,7 +127,7 @@ async function worker() {
     const run = await runOne(c, t, r);
     appendFileSync(out, JSON.stringify(run) + '\n');
     done++;
-    console.log(`[${done}/${jobs.length}] ${run.id} ${run.error ? 'ERROR ' + run.error : run.compliant ? 'compliant' : 'VIOLATION'} skill=${run.skillLoaded} blocked=${run.blocked} $${run.costUsd?.toFixed(3)} ${Math.round(run.durationMs / 1000)}s`);
+    console.log(`[${done}/${jobs.length}] ${run.id} ${run.error ? 'ERROR ' + run.error : run.compliant ? 'compliant' : 'VIOLATION'} skill=${run.skillLoaded} refused=${run.refusals.length} $${run.costUsd?.toFixed(3)} ${Math.round(run.durationMs / 1000)}s`);
   }
 }
 await Promise.all(Array.from({ length: Number(opts.concurrency) }, worker));
