@@ -1,0 +1,41 @@
+diff --git a/src/users.ts b/src/users.ts
+index 219c84a..d5a2edd 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -30,10 +31,26 @@ function validateNewUser(input: Omit<User, 'id'>): void {
+  * @throws If the email format, name or phone is invalid, or the email is already registered.
+  */
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+-  validateNewUser(input);
+-  const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
++  let stage = 'validation';
++  try {
++    validateNewUser(input);
++    stage = 'duplicate check';
++    const existing = await db.users.findByEmail(input.email);
++    if (existing) {
++      stage = 'duplicate email';
++      logger.warn('user creation rejected', { stage, existingUserId: existing.id });
++      throw new Error('Email already registered');
++    }
++    stage = 'insert';
++    const user = await db.users.insert(input);
++    logger.info('user created', { userId: user.id });
++    return user;
++  } catch (err) {
++    if (stage !== 'duplicate email') {
++      logger.error('user creation failed', { stage, error: err instanceof Error ? err.name : 'unknown' });
++    }
++    throw err;
++  }
+ }
+ 
+ /**

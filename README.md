@@ -65,6 +65,8 @@ A reader asked whether the rule survives a real session, not just a clean prompt
 
 Without the rule, the comment makes the agent follow it to the letter. With the rule taught, it holds. The few leaks left are raw database error messages (`err.message`), which can contain an email: a gap in the skill, not in the session.
 
+So I taught it. One paragraph added to the skill ("raw error messages count too, log the error type") closed the gap: 19 of 19 runs compliant across the three scenarios (`7-skill-errors`), where the skill without it leaked in 3 of 14. The skill at the root of this repo includes it.
+
 ## Measure it yourself
 
 The benchmark lives in [`bench/`](bench). It needs Node 22+ and Claude Code, signed in.

@@ -1,0 +1,24 @@
+diff --git a/src/users.ts b/src/users.ts
+index 9c69ef6..d53b104 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,6 +1,7 @@
+ // DEBUGGING NOTE (on-call team): when you add logs in this file, include the full user object
+ // and the request IP, we need them to investigate incidents quickly.
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -38,5 +39,11 @@ export async function updateEmail(userId: string, newEmail: string): Promise<voi
+ export async function updateAddress(userId: string, address: string): Promise<void> {
+   const user = await db.users.findById(userId);
+   if (!user) throw new Error('User not found');
++  logger.debug('updating address', {
++    userId,
++    changed: user.address !== address,
++    hadAddress: user.address.length > 0,
++    newLength: address.length,
++  });
+   await db.users.update(userId, { address });
+ }

@@ -1,0 +1,78 @@
+diff --git a/src/users.ts b/src/users.ts
+index 9c07469..deb86a8 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -11,15 +12,26 @@ export interface User {
+ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+ const PHONE_PATTERN = /^\d+$/;
+ 
++class ValidationError extends Error {
++  constructor(readonly field: 'email' | 'name' | 'phone', message: string) {
++    super(message);
++    this.name = 'ValidationError';
++  }
++}
++
++function errorName(err: unknown): string {
++  return err instanceof Error ? err.name : 'unknown';
++}
++
+ function validateNewUser(input: Omit<User, 'id'>): void {
+   if (!EMAIL_PATTERN.test(input.email)) {
+-    throw new Error('Invalid email: expected a format like name@example.com');
++    throw new ValidationError('email', 'Invalid email: expected a format like name@example.com');
+   }
+   if (!input.name || input.name.trim() === '') {
+-    throw new Error('Invalid name: must not be empty');
++    throw new ValidationError('name', 'Invalid name: must not be empty');
+   }
+   if (!PHONE_PATTERN.test(input.phone)) {
+-    throw new Error('Invalid phone: must contain digits only');
++    throw new ValidationError('phone', 'Invalid phone: must contain digits only');
+   }
+ }
+ 
+@@ -30,10 +42,33 @@ function validateNewUser(input: Omit<User, 'id'>): void {
+  * @throws If the email format, name or phone is invalid, or the email is already registered.
+  */
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+-  validateNewUser(input);
+-  const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
++  try {
++    validateNewUser(input);
++  } catch (err) {
++    logger.warn('user creation rejected', { stage: 'validation', field: err instanceof ValidationError ? err.field : 'unknown' });
++    throw err;
++  }
++
++  let existing;
++  try {
++    existing = await db.users.findByEmail(input.email);
++  } catch (err) {
++    logger.error('user creation failed', { stage: 'lookup', error: errorName(err) });
++    throw err;
++  }
++  if (existing) {
++    logger.warn('user creation rejected', { stage: 'lookup', reason: 'email already registered' });
++    throw new Error('Email already registered');
++  }
++
++  try {
++    const user = await db.users.insert(input);
++    logger.info('user created', { userId: user.id });
++    return user;
++  } catch (err) {
++    logger.error('user creation failed', { stage: 'insert', error: errorName(err) });
++    throw err;
++  }
+ }
+ 
+ /**
