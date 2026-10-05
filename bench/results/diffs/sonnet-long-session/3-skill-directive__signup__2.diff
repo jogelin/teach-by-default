@@ -1,0 +1,47 @@
+diff --git a/src/users.ts b/src/users.ts
+index 058d657..7a8167c 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -32,10 +33,32 @@ function validateNewUser(input: Omit<User, 'id'>): void {
+  * @throws If the email is already registered.
+  */
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+-  validateNewUser(input);
+-  const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
++  try {
++    validateNewUser(input);
++  } catch (err) {
++    logger.warn('createUser failed', { reason: 'validation', detail: (err as Error).message.split(':')[0] });
++    throw err;
++  }
++  let existing;
++  try {
++    existing = await db.users.findByEmail(input.email);
++  } catch (err) {
++    logger.error('createUser failed', { reason: 'db lookup error', errorName: (err as Error).name });
++    throw err;
++  }
++  if (existing) {
++    logger.warn('createUser failed', { reason: 'email already registered', existingUserId: existing.id });
++    throw new Error('Email already registered');
++  }
++  let user: User;
++  try {
++    user = await db.users.insert(input);
++  } catch (err) {
++    logger.error('createUser failed', { reason: 'db insert error', errorName: (err as Error).name });
++    throw err;
++  }
++  logger.info('user created', { userId: user.id });
++  return user;
+ }
+ 
+ /**

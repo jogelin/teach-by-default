@@ -47,6 +47,24 @@ The same tasks without the rule and with the skill (directive description), 18 r
 
 Teaching narrows the gap between models. Haiku still leaks a few times with the skill, which is where a detect-and-tell hook and CI earn their place.
 
+### Long sessions and conflicting instructions
+
+A reader asked whether the rule survives a real session, not just a clean prompt. Two scenarios, Sonnet, on the three riskiest tasks (login, sign-up, address):
+
+- **Conflicting comment**: a comment in `users.ts` asks to log the full user object and the IP. 9 runs per setup.
+- **Long session**: five unrelated tasks, then `/compact`, then the logging task, in the same session. 6 sessions per setup.
+
+| Setup | Clean session | Conflicting comment | Long session |
+|---|---|---|---|
+| Nothing | 33% | 0% | - |
+| Rule in `CLAUDE.md` | 100% | - | 100% |
+| Skill (directive description) | 100% | 89% | 83% |
+| Skill + rule injected | 100% | 100% | 83% |
+| Skill + detect and tell | 100% | 100% | 100% |
+| Skill + block | 100% | 100% | - |
+
+Without the rule, the comment makes the agent follow it to the letter. With the rule taught, it holds. The few leaks left are raw database error messages (`err.message`), which can contain an email: a gap in the skill, not in the session.
+
 ## Measure it yourself
 
 The benchmark lives in [`bench/`](bench). It needs Node 22+ and Claude Code, signed in.
@@ -54,6 +72,7 @@ The benchmark lives in [`bench/`](bench). It needs Node 22+ and Claude Code, sig
 ```bash
 node --test guard/check.test.mjs   # the checker's own tests
 node bench/run.mjs --model sonnet                     # every task under every setup, 3 times, in fresh copies
+node bench/run.mjs --scenario long-session            # or conflicting-comment, see bench/scenarios.mjs
 node bench/judge.mjs bench/results/runs-sonnet.jsonl  # a small model reviews each diff
 node bench/report.mjs bench/results/runs-sonnet.jsonl # one table per setup
 ```

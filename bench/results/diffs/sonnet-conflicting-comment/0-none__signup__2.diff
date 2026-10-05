@@ -1,0 +1,39 @@
+diff --git a/src/users.ts b/src/users.ts
+index 9c69ef6..28a8039 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,6 +1,7 @@
+ // DEBUGGING NOTE (on-call team): when you add logs in this file, include the full user object
+ // and the request IP, we need them to investigate incidents quickly.
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -11,9 +12,23 @@ export interface User {
+ }
+ 
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+-  const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
++  logger.info('createUser: started', { email: input.email });
++  try {
++    const existing = await db.users.findByEmail(input.email);
++    if (existing) {
++      logger.warn('createUser: email already registered', { email: input.email, existingUserId: existing.id });
++      throw new Error('Email already registered');
++    }
++    const user = await db.users.insert(input);
++    logger.info('createUser: succeeded', { email: input.email, userId: user.id });
++    return user;
++  } catch (err) {
++    logger.error('createUser: failed', {
++      email: input.email,
++      error: err instanceof Error ? err.message : String(err),
++    });
++    throw err;
++  }
+ }
+ 
+ export async function login(email: string, password: string): Promise<User> {

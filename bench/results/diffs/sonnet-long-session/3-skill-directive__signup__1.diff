@@ -1,0 +1,59 @@
+diff --git a/src/users.ts b/src/users.ts
+index db8847d..9352666 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -19,18 +20,37 @@ export interface User {
+  * @throws Error('Email already registered') if a user with this email exists.
+  */
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) {
+-    throw new Error('Invalid email format');
++  let step = 'validate';
++  try {
++    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) {
++      throw new Error('Invalid email format');
++    }
++    if (!input.name || input.name.trim() === '') {
++      throw new Error('Name must not be empty');
++    }
++    if (!/^\d+$/.test(input.phone)) {
++      throw new Error('Phone must contain digits only');
++    }
++    step = 'lookup';
++    const existing = await db.users.findByEmail(input.email);
++    if (existing) {
++      logger.warn('createUser rejected', { reason: 'email already registered', existingUserId: existing.id });
++      throw new Error('Email already registered');
++    }
++    step = 'insert';
++    const user = await db.users.insert(input);
++    logger.info('user created', { userId: user.id });
++    return user;
++  } catch (err) {
++    const reason = err instanceof Error ? err.message : 'unknown error';
++    // Known rejections are logged where they happen or are validation errors; db failures are errors.
++    if (step === 'validate') {
++      logger.warn('createUser rejected', { reason });
++    } else if (reason !== 'Email already registered') {
++      logger.error('createUser failed', { step, errorName: err instanceof Error ? err.name : 'unknown' });
++    }
++    throw err;
+   }
+-  if (!input.name || input.name.trim() === '') {
+-    throw new Error('Name must not be empty');
+-  }
+-  if (!/^\d+$/.test(input.phone)) {
+-    throw new Error('Phone must contain digits only');
+-  }
+-  const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
+ }
+ 
+ /**

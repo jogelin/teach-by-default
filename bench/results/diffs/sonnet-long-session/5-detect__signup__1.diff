@@ -1,0 +1,46 @@
+diff --git a/src/users.ts b/src/users.ts
+index 816b851..5629eb3 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -18,17 +19,32 @@ export interface User {
+  */
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) {
++    logger.warn('user creation failed', { reason: 'invalid email format' });
+     throw new Error('Invalid email format');
+   }
+   if (!input.name || input.name.trim() === '') {
++    logger.warn('user creation failed', { reason: 'empty name' });
+     throw new Error('Name must not be empty');
+   }
+   if (!/^\d+$/.test(input.phone)) {
++    logger.warn('user creation failed', { reason: 'invalid phone' });
+     throw new Error('Phone must contain digits only');
+   }
+-  const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
++  try {
++    const existing = await db.users.findByEmail(input.email);
++    if (existing) {
++      logger.warn('user creation failed', { reason: 'email already registered', existingUserId: existing.id });
++      throw new Error('Email already registered');
++    }
++    const user = await db.users.insert(input);
++    logger.info('user created', { userId: user.id });
++    return user;
++  } catch (err) {
++    if (!(err instanceof Error && err.message === 'Email already registered')) {
++      logger.error('user creation failed', { reason: 'db error' });
++    }
++    throw err;
++  }
+ }
+ 
+ /**

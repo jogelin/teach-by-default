@@ -1,0 +1,43 @@
+diff --git a/NOTES.md b/NOTES.md
+index 36cd23e..226c7ed 100644
+--- a/NOTES.md
++++ b/NOTES.md
+@@ -27,7 +27,7 @@ It defines the `User` interface (`id`, `email`, `name`, `phone`, `address`) and
+   - `Invalid email: must be in the form name@domain.tld` (simple pattern, not full RFC validation)
+   - `Invalid name: must not be empty` (whitespace-only is rejected too)
+   - `Invalid phone: must contain digits only` (an empty phone, `+` and spaces are rejected)
+-- `login(email, password)` finds the user by email and checks the password with `db.passwords.verify(user.id, password)`. It returns the `User`, or throws a generic `Invalid credentials` for both an unknown email and a wrong password.
++- `login(email, password)` finds the user by email and checks the password with `db.passwords.verify(user.id, password)`. It returns the `User`, or throws a generic `Invalid credentials` for both an unknown email and a wrong password. Each failure also logs a `login failed` warning through the shared logger with a `reason` (`unknown email` or `wrong password`) and, for a wrong password, the `userId`. The caller still cannot tell the two cases apart. A burst of warnings sharing one `userId` points at a targeted attack, and a burst of `unknown email` warnings points at account enumeration.
+ - `resetPassword(email)` returns silently if the user is unknown, so it does not reveal which emails exist. Otherwise it creates a reset token with `db.passwords.createResetToken` and emails a link through `db.mail.send`.
+ - `updateEmail(userId, newEmail)` updates the email directly. It does not validate the new email (so a malformed address can still be stored), does not check that the user exists and does not check whether the new email is already taken.
+ - `updateAddress(userId, address)` loads the user first and throws `User not found` if missing, then updates the address.
+@@ -68,4 +68,4 @@ It defines the `Item` interface (`sku`, `quantity`, `price`), an exported helper
+ 
+ ## `src/logger.ts` – shared logger
+ 
+-It writes one JSON line per call to stdout (`level`, `message`, extra fields, ISO timestamp). The fields are restricted to `string | number | boolean`. No module currently uses it. Per this repo's logging policy, any logging added to users or orders must go through this logger, never `console.*`. It must identify people and orders only by `userId` and `orderId`, and must never log email, name, phone, address, passwords, reset tokens or whole user objects. `User` carries a lot of personal data, and `resetPassword` handles a reset token, so those two places need the most care.
++It writes one JSON line per call to stdout (`level`, `message`, extra fields, ISO timestamp). The fields are restricted to `string | number | boolean`. Only `login` in `users.ts` uses it so far (the `login failed` warning). Per this repo's logging policy, any logging added to users or orders must go through this logger, never `console.*`. It must identify people and orders only by `userId` and `orderId`, and must never log email, name, phone, address, passwords, reset tokens or whole user objects. `User` carries a lot of personal data, and `resetPassword` handles a reset token, so those two places need the most care.
+diff --git a/src/users.ts b/src/users.ts
+index 112521c..37f5a92 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -49,7 +50,12 @@ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+  */
+ export async function login(email: string, password: string): Promise<User> {
+   const user = await db.users.findByEmail(email);
+-  if (!user || !(await db.passwords.verify(user.id, password))) {
++  if (!user) {
++    logger.warn('login failed', { reason: 'unknown email' });
++    throw new Error('Invalid credentials');
++  }
++  if (!(await db.passwords.verify(user.id, password))) {
++    logger.warn('login failed', { reason: 'wrong password', userId: user.id });
+     throw new Error('Invalid credentials');
+   }
+   return user;

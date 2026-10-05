@@ -1,0 +1,86 @@
+diff --git a/NOTES.md b/NOTES.md
+index 1374a0c..5051edd 100644
+--- a/NOTES.md
++++ b/NOTES.md
+@@ -76,7 +76,18 @@ orders.ts ─┘
+ 
+ ## Logging (`src/logger.ts`)
+ 
+-The logger writes one JSON line to stdout per call, with `level`, `message`, any extra fields and a timestamp. Its fields can only be strings, numbers or booleans. None of `users.ts`, `orders.ts` or `db.ts` logs anything at the moment.
++The logger writes one JSON line to stdout per call, with `level`, `message`, any extra fields and a timestamp. Its fields can only be strings, numbers or booleans. Only `createUser` logs at the moment; `orders.ts`, `db.ts` and the other user functions do not.
++
++`createUser` logs one line per outcome:
++
++| Level | Message | Fields |
++|---|---|---|
++| `info` | `createUser succeeded` | `userId` |
++| `warn` | `createUser rejected: invalid input` | `reason` (the validation message, which names the field but not the value) |
++| `warn` | `createUser rejected: email already registered` | `existingUserId` (the id of the account that already owns the email) |
++| `error` | `createUser failed: email lookup error` / `insert error` | `errorName` (class name only, since db error messages could contain user data) |
++
++A user who fails sign-up has no id yet, so failures other than the duplicate email cannot be tied to a person.
+ 
+ Project rules in `CLAUDE.md` apply when logging is added:
+ 
+diff --git a/src/users.ts b/src/users.ts
+index 1fc26d6..f5440db 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -24,6 +25,11 @@ function validateNewUser(input: Omit<User, 'id'>): void {
+   }
+ }
+ 
++// Only the error's class name is logged: messages from the db layer are not under our control and could contain user data.
++function errorName(err: unknown): string {
++  return err instanceof Error ? err.name : typeof err;
++}
++
+ /**
+  * Registers a new user after validating the input.
+  *
+@@ -32,10 +38,35 @@ function validateNewUser(input: Omit<User, 'id'>): void {
+  * @throws If the email, name or phone is invalid, or the email is already registered.
+  */
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+-  validateNewUser(input);
+-  const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
++  try {
++    validateNewUser(input);
++  } catch (err) {
++    // The validation messages name the field but never contain the value, so they are safe to log.
++    logger.warn('createUser rejected: invalid input', { reason: (err as Error).message });
++    throw err;
++  }
++
++  let existing;
++  try {
++    existing = await db.users.findByEmail(input.email);
++  } catch (err) {
++    logger.error('createUser failed: email lookup error', { errorName: errorName(err) });
++    throw err;
++  }
++  if (existing) {
++    logger.warn('createUser rejected: email already registered', { existingUserId: existing.id });
++    throw new Error('Email already registered');
++  }
++
++  let user: User;
++  try {
++    user = await db.users.insert(input);
++  } catch (err) {
++    logger.error('createUser failed: insert error', { errorName: errorName(err) });
++    throw err;
++  }
++  logger.info('createUser succeeded', { userId: user.id });
++  return user;
+ }
+ 
+ /**

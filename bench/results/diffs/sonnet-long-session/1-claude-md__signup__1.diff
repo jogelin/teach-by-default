@@ -1,0 +1,81 @@
+diff --git a/NOTES.md b/NOTES.md
+index 84c7f00..4db3a42 100644
+--- a/NOTES.md
++++ b/NOTES.md
+@@ -1,6 +1,6 @@
+ # How users, orders and the db stub fit together
+ 
+-The service has four files in `src/`. `db.ts` is the data layer, `users.ts` and `orders.ts` are domain modules that sit on top of it, and `logger.ts` is the shared logger. Neither domain module currently uses the logger.
++The service has four files in `src/`. `db.ts` is the data layer, `users.ts` and `orders.ts` are domain modules that sit on top of it, and `logger.ts` is the shared logger. Only `createUser` in `users.ts` logs so far.
+ 
+ ## `src/db.ts` — the db stub
+ 
+@@ -23,7 +23,11 @@ Mail sending is also reached through `db`.
+ 
+ It defines the `User` interface (`id`, `email`, `name`, `phone`, `address`) and five functions. Each one goes through `db`:
+ 
+-- `createUser(input)` first validates the input with a private `validateNewUser` helper. It throws `Invalid email format` if the email isn't shaped like `local@domain.tld`, `Name must not be empty` if the name is empty or whitespace-only, and `Phone must contain digits only` if the phone isn't a non-empty run of digits. The messages deliberately leave out the submitted values so they are safe to log. It then looks up `db.users.findByEmail`. If a user exists it throws `Email already registered`. Otherwise it calls `db.users.insert(input)`, and the returned `User` includes the `id` the db assigns (`input` is `Omit<User, 'id'>`).
++- `createUser(input)` first validates the input with a private `validateNewUser` helper. It throws `Invalid email format` if the email isn't shaped like `local@domain.tld`, `Name must not be empty` if the name is empty or whitespace-only, and `Phone must contain digits only` if the phone isn't a non-empty run of digits. The messages deliberately leave out the submitted values so they are safe to log. It then looks up `db.users.findByEmail`. If a user exists it throws `Email already registered`. Otherwise it calls `db.users.insert(input)`, and the returned `User` includes the `id` the db assigns (`input` is `Omit<User, 'id'>`). It logs each outcome, using ids only:
++  - success: `info` "createUser succeeded" with `userId`.
++  - invalid input: `warn` "createUser rejected: invalid input" with `reason` (the validation message, which has no submitted values).
++  - duplicate email: `warn` "createUser rejected: email already registered" with `existingUserId`, the id of the account that owns the email.
++  - db failure: `error` "createUser failed" with `stage` (`lookup` or `insert`) and `errorType` (the error's name only, since db messages might echo the input).
+ - `login(email, password)` finds the user by email, then checks `db.passwords.verify(user.id, password)`. It throws the same `Invalid credentials` error whether the user is missing or the password is wrong, so a caller can't tell which one failed. On success it returns the full `User`.
+ - `resetPassword(email)` returns silently if the email is unknown, which again avoids revealing whether an account exists. Otherwise it creates a reset token with `db.passwords.createResetToken(user.id)` and emails a link containing the token through `db.mail.send`.
+ - `updateEmail(userId, newEmail)` calls `db.users.update` directly. It does not check that the user exists and does not check that the new email is unique, unlike `createUser`.
+@@ -62,7 +66,7 @@ orders.ts ─┘
+ 
+ ## `src/logger.ts` — logger
+ 
+-It exports `logger` with `debug`, `info`, `warn` and `error`. Each writes one JSON line to stdout with `level`, `message`, any extra fields (strings, numbers or booleans only) and an ISO timestamp. `CLAUDE.md` requires all logging to use it, never `console.*`, and to identify people and orders by `userId` and `orderId` only. No code in `users.ts` or `orders.ts` logs anything today.
++It exports `logger` with `debug`, `info`, `warn` and `error`. Each writes one JSON line to stdout with `level`, `message`, any extra fields (strings, numbers or booleans only) and an ISO timestamp. `CLAUDE.md` requires all logging to use it, never `console.*`, and to identify people and orders by `userId` and `orderId` only. Today only `createUser` logs; nothing else in `users.ts` or `orders.ts` does.
+ 
+ ## Things to keep in mind
+ 
+diff --git a/src/users.ts b/src/users.ts
+index 94a4492..0878742 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -27,10 +28,32 @@ function validateNewUser(input: Omit<User, 'id'>): void {
+  *   digits only, or the email is already registered.
+  */
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+-  validateNewUser(input);
+-  const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
++  try {
++    validateNewUser(input);
++  } catch (err) {
++    // Validation messages contain no submitted values, so they are safe to log.
++    logger.warn('createUser rejected: invalid input', { reason: (err as Error).message });
++    throw err;
++  }
++
++  // Only the error type is logged for db failures: their messages may echo the input.
++  let stage = 'lookup';
++  try {
++    const existing = await db.users.findByEmail(input.email);
++    if (existing) {
++      logger.warn('createUser rejected: email already registered', { existingUserId: existing.id });
++      throw new Error('Email already registered');
++    }
++    stage = 'insert';
++    const user = await db.users.insert(input);
++    logger.info('createUser succeeded', { userId: user.id });
++    return user;
++  } catch (err) {
++    if ((err as Error).message !== 'Email already registered') {
++      logger.error('createUser failed', { stage, errorType: (err as Error).name });
++    }
++    throw err;
++  }
+ }
+ 
+ /**

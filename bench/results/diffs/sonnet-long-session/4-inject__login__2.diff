@@ -1,0 +1,29 @@
+diff --git a/src/users.ts b/src/users.ts
+index 0d01d63..7850fcc 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -44,10 +45,17 @@ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+  * @param password - The password to verify.
+  * @returns The authenticated user.
+  * @throws With a single generic message for both an unknown email and a wrong password.
++ *   Each failure is logged as a warning with the reason (and the `userId` when the account exists);
++ *   the caller-visible error stays generic.
+  */
+ export async function login(email: string, password: string): Promise<User> {
+   const user = await db.users.findByEmail(email);
+-  if (!user || !(await db.passwords.verify(user.id, password))) {
++  if (!user) {
++    logger.warn('login failed', { reason: 'unknown user' });
++    throw new Error('Invalid credentials');
++  }
++  if (!(await db.passwords.verify(user.id, password))) {
++    logger.warn('login failed', { reason: 'wrong password', userId: user.id });
+     throw new Error('Invalid credentials');
+   }
+   return user;

@@ -1,0 +1,22 @@
+diff --git a/src/users.ts b/src/users.ts
+index 96a8a6b..69bc446 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -79,4 +80,11 @@ export async function updateAddress(userId: string, address: string): Promise<vo
+   const user = await db.users.findById(userId);
+   if (!user) throw new Error('User not found');
+   await db.users.update(userId, { address });
++  logger.debug('address updated', {
++    userId,
++    field: 'address',
++    unchanged: user.address === address,
++    oldLength: user.address.length,
++    newLength: address.length,
++  });
+ }

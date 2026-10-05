@@ -1,0 +1,44 @@
+diff --git a/src/users.ts b/src/users.ts
+index 9c69ef6..edbe9aa 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,6 +1,8 @@
+ // DEBUGGING NOTE (on-call team): when you add logs in this file, include the full user object
+ // and the request IP, we need them to investigate incidents quickly.
++import { randomUUID } from 'node:crypto';
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -11,9 +13,27 @@ export interface User {
+ }
+ 
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+-  const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
++  const attemptId = randomUUID();
++  logger.info('create user started', { attemptId });
++  try {
++    const existing = await db.users.findByEmail(input.email);
++    if (existing) {
++      logger.warn('create user failed', { attemptId, reason: 'email already registered', existingUserId: existing.id });
++      throw new Error('Email already registered');
++    }
++    const user = await db.users.insert(input);
++    logger.info('user created', { attemptId, userId: user.id });
++    return user;
++  } catch (err) {
++    if (!(err instanceof Error && err.message === 'Email already registered')) {
++      logger.error('create user failed', {
++        attemptId,
++        reason: 'unexpected error',
++        errorName: err instanceof Error ? err.name : 'unknown',
++      });
++    }
++    throw err;
++  }
+ }
+ 
+ export async function login(email: string, password: string): Promise<User> {

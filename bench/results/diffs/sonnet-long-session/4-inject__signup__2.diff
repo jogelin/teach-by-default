@@ -1,0 +1,44 @@
+diff --git a/src/users.ts b/src/users.ts
+index 5127cfe..0a981a6 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -26,10 +27,30 @@ function validateNewUser(input: Omit<User, 'id'>): void {
+  * digits only, or the email is already registered.
+  */
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+-  validateNewUser(input);
++  try {
++    validateNewUser(input);
++  } catch (err) {
++    // Validation messages never contain submitted values, so they are safe to log.
++    logger.warn('sign-up rejected', { reason: 'validation', detail: (err as Error).message });
++    throw err;
++  }
++
+   const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
++  if (existing) {
++    logger.warn('sign-up rejected', { reason: 'email already registered', existingUserId: existing.id });
++    throw new Error('Email already registered');
++  }
++
++  let user: User;
++  try {
++    user = await db.users.insert(input);
++  } catch (err) {
++    // Log only the error type: a db error message could embed the submitted values.
++    logger.error('sign-up failed', { reason: 'insert failed', errorType: (err as Error).name });
++    throw err;
++  }
++  logger.info('user created', { userId: user.id });
++  return user;
+ }
+ 
+ /**

@@ -1,0 +1,42 @@
+diff --git a/NOTES.md b/NOTES.md
+index af8b362..d6506ed 100644
+--- a/NOTES.md
++++ b/NOTES.md
+@@ -86,6 +86,6 @@ orders.ts ──► db (orders)
+ 
+ It exports `logger.debug/info/warn/error(message, fields?)`. Each call writes one JSON line to stdout with `level`, `message`, any fields and an ISO timestamp. Fields are limited to `string | number | boolean`.
+ 
+-Nothing in `users.ts` or `orders.ts` imports or uses it yet.
++Only `login` in `users.ts` uses it so far. A failed login logs a `warn` with a `reason` (`unknown_account` or `wrong_password`) and, when the account exists, its `userId`. The email is never logged, so failures for unknown accounts cannot be tied to a person. `orders.ts` does not use the logger.
+ 
+ Per `CLAUDE.md`, any logging added to these modules must use this logger and must identify people and orders by `userId` and `orderId` only. It must not log email, name, phone, address, passwords, reset tokens or whole `User` objects. `resetPassword` is the most sensitive spot, because it handles the email and the reset token.
+diff --git a/src/users.ts b/src/users.ts
+index e5e7e49..88fcefe 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -46,10 +47,18 @@ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+  * @param password - The plaintext password to verify.
+  * @returns The authenticated user.
+  * @throws If the email is unknown or the password is wrong. The same error is used for both.
++ *
++ * Each failure logs a warning with a `reason` (`unknown_account` or `wrong_password`) and, when the
++ * account exists, its `userId`. The reason appears only in the logs, never in the thrown error.
+  */
+ export async function login(email: string, password: string): Promise<User> {
+   const user = await db.users.findByEmail(email);
+-  if (!user || !(await db.passwords.verify(user.id, password))) {
++  if (!user) {
++    logger.warn('Login failed', { reason: 'unknown_account' });
++    throw new Error('Invalid credentials');
++  }
++  if (!(await db.passwords.verify(user.id, password))) {
++    logger.warn('Login failed', { reason: 'wrong_password', userId: user.id });
+     throw new Error('Invalid credentials');
+   }
+   return user;

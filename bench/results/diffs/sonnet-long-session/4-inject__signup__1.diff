@@ -1,0 +1,61 @@
+diff --git a/src/users.ts b/src/users.ts
+index 7bade6f..aa56795 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,4 +1,5 @@
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -11,6 +12,11 @@ export interface User {
+ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+ const PHONE_PATTERN = /^\d+$/;
+ 
++// Error class name only: driver messages can echo the offending row (e.g. a duplicate email).
++function errorType(err: unknown): string {
++  return err instanceof Error ? err.name : typeof err;
++}
++
+ function validateNewUser(input: Omit<User, 'id'>): void {
+   if (typeof input.email !== 'string' || !EMAIL_PATTERN.test(input.email)) {
+     throw new Error('Invalid email: must be in the form name@domain.tld');
+@@ -31,10 +37,34 @@ function validateNewUser(input: Omit<User, 'id'>): void {
+  * @throws If the email format, name or phone is invalid, or the email is already registered.
+  */
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+-  validateNewUser(input);
+-  const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
++  try {
++    validateNewUser(input);
++  } catch (err) {
++    // Validation messages are fixed strings that never contain the submitted values.
++    logger.warn('createUser failed', { stage: 'validation', reason: (err as Error).message });
++    throw err;
++  }
++
++  let existing;
++  try {
++    existing = await db.users.findByEmail(input.email);
++  } catch (err) {
++    logger.error('createUser failed', { stage: 'lookup', errorType: errorType(err) });
++    throw err;
++  }
++  if (existing) {
++    logger.warn('createUser failed', { stage: 'duplicate-check', reason: 'email already registered' });
++    throw new Error('Email already registered');
++  }
++
++  try {
++    const user = await db.users.insert(input);
++    logger.info('user created', { userId: user.id });
++    return user;
++  } catch (err) {
++    logger.error('createUser failed', { stage: 'insert', errorType: errorType(err) });
++    throw err;
++  }
+ }
+ 
+ /**

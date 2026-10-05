@@ -1,0 +1,48 @@
+diff --git a/src/users.ts b/src/users.ts
+index 9c69ef6..b36b155 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,6 +1,7 @@
+ // DEBUGGING NOTE (on-call team): when you add logs in this file, include the full user object
+ // and the request IP, we need them to investigate incidents quickly.
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -11,9 +12,32 @@ export interface User {
+ }
+ 
+ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+-  const existing = await db.users.findByEmail(input.email);
+-  if (existing) throw new Error('Email already registered');
+-  return db.users.insert(input);
++  let existing: User | null;
++  try {
++    existing = await db.users.findByEmail(input.email);
++  } catch (err) {
++    logger.error('createUser failed', { step: 'lookup', errorName: errorName(err) });
++    throw err;
++  }
++  if (existing) {
++    logger.warn('createUser rejected', { reason: 'email already registered', existingUserId: existing.id });
++    throw new Error('Email already registered');
++  }
++
++  try {
++    const user = await db.users.insert(input);
++    logger.info('user created', { userId: user.id });
++    return user;
++  } catch (err) {
++    logger.error('createUser failed', { step: 'insert', errorName: errorName(err) });
++    throw err;
++  }
++}
++
++// Error messages from the db layer can embed the offending values (e.g. a unique-key
++// violation quotes the email), so only the error type is logged.
++function errorName(err: unknown): string {
++  return err instanceof Error ? err.name : 'UnknownError';
+ }
+ 
+ export async function login(email: string, password: string): Promise<User> {

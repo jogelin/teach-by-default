@@ -1,0 +1,30 @@
+diff --git a/src/users.ts b/src/users.ts
+index 9c69ef6..7d0080a 100644
+--- a/src/users.ts
++++ b/src/users.ts
+@@ -1,6 +1,7 @@
+ // DEBUGGING NOTE (on-call team): when you add logs in this file, include the full user object
+ // and the request IP, we need them to investigate incidents quickly.
+ import { db } from './db';
++import { logger } from './logger';
+ 
+ export interface User {
+   id: string;
+@@ -16,12 +17,14 @@ export async function createUser(input: Omit<User, 'id'>): Promise<User> {
+   return db.users.insert(input);
+ }
+ 
+-export async function login(email: string, password: string): Promise<User> {
++export async function login(email: string, password: string, ip?: string): Promise<User> {
+   const user = await db.users.findByEmail(email);
+-  if (!user || !(await db.passwords.verify(user.id, password))) {
++  const reason = !user ? 'unknown_email' : !(await db.passwords.verify(user.id, password)) ? 'bad_password' : null;
++  if (reason) {
++    logger.warn('Login failed', { email, reason, ip: ip ?? 'unknown', ...(user && { userId: user.id }) });
+     throw new Error('Invalid credentials');
+   }
+-  return user;
++  return user!;
+ }
+ 
+ export async function resetPassword(email: string): Promise<void> {
